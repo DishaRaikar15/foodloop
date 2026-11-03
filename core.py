@@ -3,26 +3,35 @@ Storage is plain CSV files managed with pandas (swap for SQLite/Postgres later).
 from __future__ import annotations
 
 import hashlib
+import hmac
+import os
 import random
+import re
 import secrets
+import tempfile
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 
-DATA = Path(__file__).parent / "data"
-DATA.mkdir(exist_ok=True)
+DATA = Path(os.environ.get("FOODLOOP_DATA", Path(__file__).parent / "data"))
+DATA.mkdir(parents=True, exist_ok=True)
+_LOCK = threading.RLock()
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_PBKDF2_ITERS = 200_000
 
 SCHEMAS = {
     "users": ["user_id", "name", "email", "password", "role", "ref_code", "referred_by", "first_purchase_done"],
     "items": ["item_id", "vendor_id", "name", "mrp", "quantity", "expires_at"],
     "orders": ["order_id", "user_id", "item_id", "item_name", "qty", "unit_price",
-               "points_used", "total_paid", "group_deal", "created_at"],
+               "points_used", "total_paid", "group_deal", "created_at", "vendor_id"],
     "wallet": ["user_id", "timestamp", "kind", "points", "note"],
     "history": ["date", "weekday", "item", "prepared", "sold"],
 }
 
 # ---- Business rules (tweak freely) ----
+BASE_DISCOUNT = 0            # discount when more than 180 minutes remain
 REFERRAL_BONUS = 20          # points to both referrer and new student
 POINTS_PER_RUPEES = 10       # earn 1 point per Rs.10 spent
 MAX_REDEEM_SHARE = 0.5       # points can cover at most 50% of a bill (1 point = Rs.1)
@@ -37,11 +46,26 @@ def read(name: str) -> pd.DataFrame:
     path = DATA / f"{name}.csv"
     if not path.exists():
         pd.DataFrame(columns=SCHEMAS[name]).to_csv(path, index=False)
-    return pd.read_csv(path, keep_default_na=False)
+    df = pd.read_csv(path, keep_default_na=False)
+    for col in SCHEMAS[name]:
+        if col not in df.columns:
+            df[col] = ""
+    return df
 
 
 def save(name: str, df: pd.DataFrame) -> None:
-    df.to_csv(DATA / f"{name}.csv", index=False)
+    path = DATA / f"{name}.csv"
+    fd, tmp = tempfile.mkstemp(prefix=f".{name}.", suffix=".tmp", dir=DATA)
+    os.close(fd)
+    try:
+        df.to_csv(tmp, index=False)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _next_id(df: pd.DataFrame, col: str) -> int:
@@ -49,37 +73,63 @@ def _next_id(df: pd.DataFrame, col: str) -> int:
 
 
 def _hash(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()  # use bcrypt/argon2 in production
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt, _PBKDF2_ITERS)
+    return f"pbkdf2${_PBKDF2_ITERS}${salt.hex()}${digest.hex()}"
+
+
+def _verify(password: str, stored: str) -> bool:
+    try:
+        algo, iters_s, salt_hex, hash_hex = str(stored).split("$")
+        if algo != "pbkdf2":
+            return False
+        got = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), int(iters_s))
+        return hmac.compare_digest(got, bytes.fromhex(hash_hex))
+    except (ValueError, TypeError):
+        return False
 
 
 # ---------------- users ----------------
 def register(name, email, password, role="student", referral_code=""):
-    users = read("users")
-    email = email.strip().lower()
-    if not (name and email and password):
-        return None, "Please fill all fields."
-    if (users["email"] == email).any():
-        return None, "Email already registered."
-    referrer = ""
-    if referral_code.strip():
-        match = users[users["ref_code"] == referral_code.strip().upper()]
-        if match.empty:
-            return None, "Invalid referral code."
-        referrer = int(match.iloc[0]["user_id"])
-    row = {
-        "user_id": _next_id(users, "user_id"), "name": name.strip(), "email": email,
-        "password": _hash(password), "role": role,
-        "ref_code": "FL" + secrets.token_hex(3).upper(),
-        "referred_by": referrer, "first_purchase_done": 0,
-    }
-    save("users", pd.concat([users, pd.DataFrame([row])], ignore_index=True))
-    return row, "Registered successfully!"
+    with _LOCK:
+        users = read("users")
+        name = (name or "").strip()
+        email = (email or "").strip().lower()
+        if not name:
+            return None, "Name is required."
+        if not _EMAIL_RE.match(email):
+            return None, "Invalid email format."
+        if not password or len(password) < 6:
+            return None, "Password must be at least 6 characters."
+        if role not in ("student", "vendor"):
+            return None, "Role must be student or vendor."
+        if (users["email"] == email).any():
+            return None, "Email already registered."
+        referrer = ""
+        if referral_code.strip():
+            match = users[users["ref_code"] == referral_code.strip().upper()]
+            if match.empty:
+                return None, "Invalid referral code."
+            referrer = int(match.iloc[0]["user_id"])
+        row = {
+            "user_id": _next_id(users, "user_id"), "name": name, "email": email,
+            "password": _hash(password), "role": role,
+            "ref_code": "FL" + secrets.token_hex(3).upper(),
+            "referred_by": referrer, "first_purchase_done": 0,
+        }
+        save("users", pd.concat([users, pd.DataFrame([row])], ignore_index=True))
+        return row, "Registered successfully!"
 
 
 def login(email, password):
     users = read("users")
-    m = users[(users["email"] == email.strip().lower()) & (users["password"] == _hash(password))]
-    return None if m.empty else m.iloc[0].to_dict()
+    m = users[users["email"] == email.strip().lower()]
+    if m.empty:
+        return None
+    row = m.iloc[0]
+    if not _verify(password, row["password"]):
+        return None
+    return row.to_dict()
 
 
 # ---------------- dynamic pricing ----------------
@@ -95,7 +145,7 @@ def discount_pct(minutes_left: float) -> int:
         return 25
     if minutes_left <= 180:
         return 15
-    return 10
+    return BASE_DISCOUNT
 
 
 def price_now(mrp: float, minutes_left: float, group: bool = False) -> int:
@@ -120,11 +170,32 @@ def live_items() -> pd.DataFrame:
 
 
 def add_item(vendor_id, name, mrp, quantity, validity_hours):
+    with _LOCK:
+        name = (name or "").strip()
+        if not name:
+            return None, "Item name is required."
+        if mrp <= 0:
+            return None, "MRP must be greater than 0."
+        if quantity < 1:
+            return None, "Quantity must be at least 1."
+        if validity_hours <= 0:
+            return None, "Validity must be greater than 0 hours."
+        items = read("items")
+        row = {"item_id": _next_id(items, "item_id"), "vendor_id": vendor_id, "name": name,
+               "mrp": mrp, "quantity": quantity,
+               "expires_at": (datetime.now() + timedelta(hours=validity_hours)).isoformat(timespec="seconds")}
+        save("items", pd.concat([items, pd.DataFrame([row])], ignore_index=True))
+        return row, "Listed! Price drops automatically as time runs out."
+
+
+def vendor_items(vendor_id) -> pd.DataFrame:
     items = read("items")
-    row = {"item_id": _next_id(items, "item_id"), "vendor_id": vendor_id, "name": name,
-           "mrp": mrp, "quantity": quantity,
-           "expires_at": (datetime.now() + timedelta(hours=validity_hours)).isoformat(timespec="seconds")}
-    save("items", pd.concat([items, pd.DataFrame([row])], ignore_index=True))
+    return items[items["vendor_id"] == vendor_id]
+
+
+def vendor_orders(vendor_id) -> pd.DataFrame:
+    orders = read("orders")
+    return orders[orders["vendor_id"] == vendor_id]
 
 
 # ---------------- wallet ----------------
@@ -152,58 +223,65 @@ def max_redeemable(user_id, subtotal: float) -> int:
 
 
 def place_order(user_id, item_id, qty, use_points=0, group=False):
-    items = read("items")
-    idx = items.index[items["item_id"] == item_id]
-    if len(idx) == 0:
-        return None, "Item not found."
-    i = idx[0]
-    minutes_left = (pd.to_datetime(items.at[i, "expires_at"]) - datetime.now()).total_seconds() / 60
-    if minutes_left <= 0:
-        return None, "This offer has expired."
-    if qty < 1 or qty > items.at[i, "quantity"]:
-        return None, "Not enough portions available."
-    if group and qty < GROUP_MIN_QTY:
-        return None, f"Group deals need at least {GROUP_MIN_QTY} portions."
+    with _LOCK:
+        if qty < 1:
+            return None, "Quantity must be at least 1."
+        use_points = max(0, use_points)
+        users = read("users")
+        if not (users["user_id"] == user_id).any():
+            return None, "Unknown user."
+        items = read("items")
+        idx = items.index[items["item_id"] == item_id]
+        if len(idx) == 0:
+            return None, "Item not found."
+        i = idx[0]
+        minutes_left = (pd.to_datetime(items.at[i, "expires_at"]) - datetime.now()).total_seconds() / 60
+        if minutes_left <= 0:
+            return None, "This offer has expired."
+        if qty > items.at[i, "quantity"]:
+            return None, "Not enough portions available."
+        if group and qty < GROUP_MIN_QTY:
+            return None, f"Group deals need at least {GROUP_MIN_QTY} portions."
 
-    unit = price_now(items.at[i, "mrp"], minutes_left, group)
-    subtotal = unit * qty
-    pts = min(int(use_points), max_redeemable(user_id, subtotal))
-    total = subtotal - pts
-    earned = int(total // POINTS_PER_RUPEES)
-    now = datetime.now().isoformat(timespec="seconds")
+        unit = price_now(items.at[i, "mrp"], minutes_left, group)
+        subtotal = unit * qty
+        pts = min(int(use_points), max_redeemable(user_id, subtotal))
+        total = subtotal - pts
+        earned = int(total // POINTS_PER_RUPEES)
+        now = datetime.now().isoformat(timespec="seconds")
 
-    items.at[i, "quantity"] -= qty
-    save("items", items)
+        items.at[i, "quantity"] -= qty
+        save("items", items)
 
-    orders = read("orders")
-    order = {"order_id": _next_id(orders, "order_id"), "user_id": user_id, "item_id": item_id,
-             "item_name": items.at[i, "name"], "qty": qty, "unit_price": unit,
-             "points_used": pts, "total_paid": total, "group_deal": int(group), "created_at": now}
-    save("orders", pd.concat([orders, pd.DataFrame([order])], ignore_index=True))
+        orders = read("orders")
+        order = {"order_id": _next_id(orders, "order_id"), "user_id": user_id, "item_id": item_id,
+                 "item_name": items.at[i, "name"], "qty": qty, "unit_price": unit,
+                 "points_used": pts, "total_paid": total, "group_deal": int(group), "created_at": now,
+                 "vendor_id": items.at[i, "vendor_id"]}
+        save("orders", pd.concat([orders, pd.DataFrame([order])], ignore_index=True))
 
-    log = []
-    if pts:
-        log.append({"user_id": user_id, "timestamp": now, "kind": "redeemed", "points": -pts,
-                    "note": f"Order #{order['order_id']}"})
-    if earned:
-        log.append({"user_id": user_id, "timestamp": now, "kind": "earned", "points": earned,
-                    "note": f"Order #{order['order_id']}"})
+        log = []
+        if pts:
+            log.append({"user_id": user_id, "timestamp": now, "kind": "redeemed", "points": -pts,
+                        "note": f"Order #{order['order_id']}"})
+        if earned:
+            log.append({"user_id": user_id, "timestamp": now, "kind": "earned", "points": earned,
+                        "note": f"Order #{order['order_id']}"})
 
-    # Referral reward on the new student's FIRST purchase
-    users = read("users")
-    u = users.index[users["user_id"] == user_id][0]
-    if users.at[u, "first_purchase_done"] == 0:
-        users.at[u, "first_purchase_done"] = 1
-        save("users", users)
-        ref = users.at[u, "referred_by"]
-        if ref != "":
-            log += [{"user_id": user_id, "timestamp": now, "kind": "referral", "points": REFERRAL_BONUS,
-                     "note": "Welcome bonus (referred)"},
-                    {"user_id": int(ref), "timestamp": now, "kind": "referral", "points": REFERRAL_BONUS,
-                     "note": f"Friend {users.at[u, 'name']} made first purchase"}]
-    if log:
-        _log(log)
-    return {**order, "earned": earned}, "Order placed! Show your order ID at the counter."
+        # Referral reward on the new student's FIRST purchase
+        u = users.index[users["user_id"] == user_id][0]
+        if users.at[u, "first_purchase_done"] == 0:
+            users.at[u, "first_purchase_done"] = 1
+            save("users", users)
+            ref = users.at[u, "referred_by"]
+            if ref != "":
+                log += [{"user_id": user_id, "timestamp": now, "kind": "referral", "points": REFERRAL_BONUS,
+                         "note": "Welcome bonus (referred)"},
+                        {"user_id": int(ref), "timestamp": now, "kind": "referral", "points": REFERRAL_BONUS,
+                         "note": f"Friend {users.at[u, 'name']} made first purchase"}]
+        if log:
+            _log(log)
+        return {**order, "earned": earned}, "Order placed! Show your order ID at the counter."
 
 
 # ---------------- impact counter ----------------
@@ -234,14 +312,31 @@ def forecast(weeks: int = 8) -> pd.DataFrame:
 
 
 # ---------------- demo data ----------------
+_DEMO_VENDOR_EMAIL = "canteen@foodloop.com"
+_DEMO_ITEMS = [("Veg Thali", 100, 12, 2.5), ("Paneer Roll", 80, 8, 1.0),
+               ("Samosa (2 pcs)", 30, 20, 0.5), ("Masala Dosa", 60, 10, 3.5)]
+
+
+def reset_demo_listings() -> None:
+    users = read("users")
+    match = users[users["email"] == _DEMO_VENDOR_EMAIL]
+    if match.empty:
+        return
+    vendor_id = int(match.iloc[0]["user_id"])
+    with _LOCK:
+        items = read("items")
+        if len(items):
+            save("items", items[items["vendor_id"] != vendor_id])
+        for name, mrp, qty, hrs in _DEMO_ITEMS:
+            add_item(vendor_id, name, mrp, qty, hrs)
+
+
 def seed_if_empty() -> None:
     if len(read("users")):
         return
     register("Demo Canteen", "canteen@foodloop.com", "vendor123", "vendor")
     register("Demo Student", "student@foodloop.com", "student123", "student")
-    for name, mrp, qty, hrs in [("Veg Thali", 100, 12, 2.5), ("Paneer Roll", 80, 8, 1.0),
-                                ("Samosa (2 pcs)", 30, 20, 0.5), ("Masala Dosa", 60, 10, 3.5)]:
-        add_item(1, name, mrp, qty, hrs)
+    reset_demo_listings()
     rng = random.Random(42)
     rows = []
     for d in range(1, 57):

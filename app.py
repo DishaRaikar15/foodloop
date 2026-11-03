@@ -18,7 +18,7 @@ with st.sidebar:
         tab_in, tab_up = st.tabs(["Login", "Register"])
         with tab_in:
             with st.form("login"):
-                e, p = st.text_input("Email"), st.text_input("Password", type="password")
+                e, p = st.text_input("Email", key="login_email"), st.text_input("Password", type="password", key="login_password")
                 if st.form_submit_button("Login"):
                     u = core.login(e, p)
                     if u:
@@ -28,10 +28,10 @@ with st.sidebar:
             st.caption("Demo: student@foodloop.com / student123  |  canteen@foodloop.com / vendor123")
         with tab_up:
             with st.form("register"):
-                n, e2 = st.text_input("Name"), st.text_input("Email ")
-                p2 = st.text_input("Password ", type="password")
-                role = st.selectbox("I am a", ["student", "vendor"])
-                code = st.text_input("Referral code (optional)")
+                n, e2 = st.text_input("Name", key="register_name"), st.text_input("Email", key="register_email")
+                p2 = st.text_input("Password", type="password", key="register_password")
+                role = st.selectbox("I am a", ["student", "vendor"], key="register_role")
+                code = st.text_input("Referral code (optional)", key="register_referral")
                 if st.form_submit_button("Create account"):
                     row, msg = core.register(n, e2, p2, role, code)
                     (st.success if row else st.error)(msg)
@@ -40,6 +40,11 @@ with st.sidebar:
         st.write(f"Hi, **{user['name']}** ({user['role']})")
         pages = ["Home", "Order Food", "Wallet", "Refer a Friend"] if user["role"] == "student" \
             else ["Home", "Vendor Dashboard"]
+        if user["role"] == "vendor":
+            with st.expander("Demo"):
+                if st.button("Reset demo listings"):
+                    core.reset_demo_listings()
+                    st.rerun()
         if st.button("Logout"):
             st.session_state.pop("user")
             st.rerun()
@@ -76,8 +81,11 @@ def order_page():
     if items.empty:
         st.info("Nothing available right now.")
         return
-    choice = st.selectbox("Choose item", items["name"] + " — " + items["minutes_left"].astype(str) + " min left")
-    row = items.iloc[(items["name"] + " — " + items["minutes_left"].astype(str) + " min left").tolist().index(choice)]
+    selected_id = st.selectbox(
+        "Choose item", items["item_id"].tolist(),
+        format_func=lambda iid: items.loc[items["item_id"] == iid, "name"].iloc[0],
+    )
+    row = items.loc[items["item_id"] == selected_id].iloc[0]
     qty = st.number_input("Portions", 1, int(row["quantity"]), 1)
     group = st.checkbox(f"Group deal (needs {core.GROUP_MIN_QTY}+ portions)", disabled=qty < core.GROUP_MIN_QTY)
     unit = row["group_price"] if group and qty >= core.GROUP_MIN_QTY else row["price_now"]
@@ -127,10 +135,15 @@ def vendor_page():
             mrp = st.number_input("MRP (₹)", 1, 2000, 80)
             qty = st.number_input("Portions", 1, 500, 10)
             hrs = st.slider("Valid for (hours)", 0.5, 6.0, 2.0, 0.5)
-            if st.form_submit_button("Publish") and name:
-                core.add_item(user["user_id"], name, mrp, qty, hrs)
-                st.success("Listed! Price drops automatically as time runs out.")
+            if st.form_submit_button("Publish"):
+                row, msg = core.add_item(user["user_id"], name, mrp, qty, hrs)
+                if row:
+                    st.success(msg)
+                else:
+                    st.error(msg)
         live = core.live_items()
+        mine = core.vendor_items(user["user_id"])
+        live = live[live["item_id"].isin(mine["item_id"])] if len(live) and len(mine) else live.iloc[0:0]
         if len(live):
             st.dataframe(live[["name", "mrp", "quantity", "minutes_left", "discount_%", "price_now"]],
                          hide_index=True, use_container_width=True)
@@ -143,7 +156,7 @@ def vendor_page():
                 st.info("💡 " + msg)
             st.dataframe(f, hide_index=True, use_container_width=True)
     with t3:
-        o = core.read("orders")
+        o = core.vendor_orders(user["user_id"])
         if o.empty:
             st.info("No orders yet.")
         else:
