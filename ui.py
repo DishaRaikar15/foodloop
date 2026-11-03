@@ -1,4 +1,4 @@
-"""FoodLoop UI components and design system: amber theme, cards, hero banners, and QR pickup codes."""
+"""FoodLoop UI components and design system: modern orange food-delivery theme."""
 import io
 import streamlit as st
 
@@ -11,7 +11,7 @@ import core
 
 
 def inject_css():
-    """Inject modern amber/yellow food-app stylesheet."""
+    """Inject modern orange food-delivery stylesheet."""
     st.markdown(
         """
         <style>
@@ -22,6 +22,12 @@ def inject_css():
             color: #1F1B2D;
         }
 
+        /* Page gradient: soft peach to white */
+        .stApp {
+            background: linear-gradient(180deg, #FFF4EA 0%, #FFFFFF 650px, #FFFFFF 100%) !important;
+            color: #1F1B2D;
+        }
+
         /* Hide Streamlit default header, footer, menu, deploy button */
         #MainMenu {visibility: hidden; display: none !important;}
         footer {visibility: hidden; display: none !important;}
@@ -29,126 +35,66 @@ def inject_css():
         [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
         .stDeployButton {display: none !important;}
 
-        /* Amber Gradient Hero Banner */
-        .fl-hero {
-            background: linear-gradient(135deg, #FDB913 0%, #F59E0B 100%);
-            border-radius: 24px;
-            padding: 1.75rem 2rem;
-            color: #1F1B2D;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 8px 24px rgba(253, 185, 19, 0.22);
+        /* Tidy 1100px max content width */
+        .block-container {
+            max-width: 1100px !important;
+            padding-top: 1.5rem !important;
+            padding-bottom: 3.5rem !important;
+            margin: 0 auto !important;
         }
 
-        .fl-hero h1, .fl-hero h2 {
-            color: #1F1B2D !important;
+        /* Large Headings: hero 3rem, weight 800 */
+        .fl-hero-title {
+            font-size: 3rem !important;
             font-weight: 800 !important;
-            letter-spacing: -0.5px;
-            margin: 0;
-        }
-
-        .fl-hero p {
             color: #1F1B2D !important;
-            font-size: 1.05rem;
-            font-weight: 500;
-            margin: 0.4rem 0 0 0;
-            opacity: 0.95;
+            line-height: 1.15 !important;
+            letter-spacing: -1px !important;
+            margin-bottom: 0.5rem !important;
         }
 
-        /* White Cards with 24px radius and soft shadow */
-        .fl-card {
+        /* Squiggle underline for highlighted word */
+        .fl-highlight {
+            color: #F26B1D !important;
+            text-decoration: underline wavy #F26B1D !important;
+            text-underline-offset: 8px !important;
+            text-decoration-thickness: 3px !important;
+        }
+
+        /* White sections with 24px radius and soft shadow */
+        .fl-section, .fl-card {
             background: #FFFFFF;
             border-radius: 24px;
-            padding: 1.4rem;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(253, 185, 19, 0.15);
-            margin-bottom: 1rem;
+            box-shadow: 0 4px 20px rgba(31, 27, 45, 0.06);
+            border: 1px solid rgba(255, 232, 214, 0.7);
+            margin-bottom: 1.25rem;
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
 
         .fl-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 28px rgba(253, 185, 19, 0.18);
+            box-shadow: 0 8px 24px rgba(242, 107, 29, 0.12);
         }
 
-        /* Pill Badges */
-        .fl-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-
-        /* Discount = Green */
-        .fl-badge-discount {
-            background-color: #DEF7EC;
-            color: #03543F;
-        }
-
-        /* Points = Amber with a dark star */
-        .fl-badge-points {
-            background-color: #FEF3C7;
-            color: #92400E;
-            border: 1px solid #FCD34D;
-        }
-
-        /* Time countdown pills: normal grey, red under 30 mins */
-        .fl-badge-time {
-            background-color: #F3F4F6;
-            color: #374151;
-        }
-
-        .fl-badge-time-low {
-            background-color: #FDE8E8;
-            color: #9B1C1C;
-            border: 1px solid #F87171;
-            animation: fl-pulse 2s infinite ease-in-out;
-        }
-
-        @keyframes fl-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-
-        /* Order Status Badges */
-        .fl-badge-status-pending {
-            background-color: #FEF3C7;
-            color: #92400E;
-            border: 1px solid #FCD34D;
-        }
-        .fl-badge-status-collected {
-            background-color: #DEF7EC;
-            color: #03543F;
-            border: 1px solid #A7F3D0;
-        }
-        .fl-badge-status-cancelled {
-            background-color: #F3F4F6;
-            color: #6B7280;
-            border: 1px solid #E5E7EB;
-        }
-
-        /* Rounded Buttons in Amber with Dark Text */
+        /* Orange pill buttons with white text (hover: slightly darker #D8580F) */
         div.stButton > button,
         div[data-testid="stFormSubmitButton"] > button {
-            background-color: #FDB913 !important;
-            color: #1F1B2D !important;
+            background-color: #F26B1D !important;
+            color: #FFFFFF !important;
             font-weight: 700 !important;
             border-radius: 9999px !important;
             border: none !important;
             padding: 0.55rem 1.4rem !important;
             font-size: 0.95rem !important;
-            box-shadow: 0 4px 12px rgba(253, 185, 19, 0.3) !important;
+            box-shadow: 0 4px 14px rgba(242, 107, 29, 0.25) !important;
             transition: all 0.2s ease !important;
         }
 
         div.stButton > button:hover,
         div[data-testid="stFormSubmitButton"] > button:hover {
-            background-color: #F59E0B !important;
-            color: #1F1B2D !important;
-            box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4) !important;
+            background-color: #D8580F !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 6px 18px rgba(216, 88, 15, 0.35) !important;
             transform: translateY(-1px);
         }
 
@@ -157,13 +103,101 @@ def inject_css():
             transform: translateY(0);
         }
 
-        /* Large Centered Metric Tiles */
+        /* Secondary buttons (e.g. inactive category tiles) */
+        div.stButton > button[kind="secondary"] {
+            background-color: #FFFFFF !important;
+            color: #1F1B2D !important;
+            border: 1.5px solid #FFE8D6 !important;
+            box-shadow: 0 2px 8px rgba(31, 27, 45, 0.04) !important;
+        }
+
+        div.stButton > button[kind="secondary"]:hover {
+            background-color: #FFF4EA !important;
+            border-color: #F26B1D !important;
+            color: #F26B1D !important;
+        }
+
+        /* Style st.radio(horizontal=True) as a top navbar of text links with an orange underline on active link */
+        div[data-testid="stRadio"] > div[role="radiogroup"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            gap: 1.75rem !important;
+            border-bottom: 2px solid #FFE8D6 !important;
+            padding-bottom: 0.5rem !important;
+            margin-bottom: 1.5rem !important;
+        }
+
+        div[data-testid="stRadio"] label {
+            cursor: pointer !important;
+            font-size: 1.05rem !important;
+            font-weight: 600 !important;
+            color: #6B7280 !important;
+            padding: 0.35rem 0.5rem 0.5rem 0.5rem !important;
+            border-bottom: 3px solid transparent !important;
+            margin-bottom: -2px !important;
+            transition: all 0.15s ease !important;
+            background: transparent !important;
+        }
+
+        div[data-testid="stRadio"] label:hover {
+            color: #F26B1D !important;
+        }
+
+        div[data-testid="stRadio"] label > div:first-child {
+            display: none !important;
+        }
+
+        div[data-testid="stRadio"] label:has(input:checked),
+        div[data-testid="stRadio"] label[aria-checked="true"] {
+            color: #F26B1D !important;
+            border-bottom: 3px solid #F26B1D !important;
+            font-weight: 700 !important;
+        }
+
+        /* Pill Badges */
+        .fl-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .fl-badge-discount {
+            background-color: #E8F8F1;
+            color: #1FA971;
+        }
+
+        .fl-badge-urgent {
+            background-color: #FDE8E8;
+            color: #E5484D;
+            font-weight: 800;
+            border: 1px solid #FCA5A5;
+        }
+
+        .fl-badge-time {
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #4B5563;
+            border: 1px solid #E2E8F0;
+        }
+
+        .fl-badge-points {
+            background-color: #FFF4EA;
+            color: #F26B1D;
+            border: 1px solid #FCD3B6;
+        }
+
+        /* Centered Metric Tiles */
         [data-testid="stMetric"] {
             background: #FFFFFF !important;
             border-radius: 24px !important;
             padding: 1.25rem 1rem !important;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05) !important;
-            border: 1px solid rgba(253, 185, 19, 0.15) !important;
+            box-shadow: 0 4px 18px rgba(31, 27, 45, 0.05) !important;
+            border: 1px solid #FFE8D6 !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
@@ -175,7 +209,7 @@ def inject_css():
             width: 100% !important;
             justify-content: center !important;
             text-align: center !important;
-            color: #4B5563 !important;
+            color: #6B7280 !important;
             font-size: 0.9rem !important;
             font-weight: 600 !important;
         }
@@ -189,7 +223,7 @@ def inject_css():
             justify-content: center !important;
             text-align: center !important;
             color: #1F1B2D !important;
-            font-size: 2rem !important;
+            font-size: 2.1rem !important;
             font-weight: 800 !important;
             margin-top: 0.25rem !important;
         }
@@ -198,20 +232,7 @@ def inject_css():
             justify-content: center !important;
         }
 
-        /* Chip-style buttons / pills styling */
-        [data-testid="stPills"] {
-            gap: 8px;
-            margin: 0.5rem 0 1rem 0;
-        }
-
-        [data-testid="stPills"] button {
-            border-radius: 9999px !important;
-            font-weight: 600 !important;
-            font-size: 0.9rem !important;
-            padding: 0.35rem 1rem !important;
-        }
-
-        /* Pickup Code Display Boxes */
+        /* 6-digit Code Box */
         .fl-code-box {
             display: flex;
             gap: 8px;
@@ -226,14 +247,14 @@ def inject_css():
             justify-content: center;
             width: 44px;
             height: 52px;
-            background: #FFF8E7;
-            border: 2px solid #FDB913;
+            background: #FFF4EA;
+            border: 2px solid #F26B1D;
             border-radius: 12px;
             font-size: 1.6rem;
             font-weight: 800;
             color: #1F1B2D;
             font-family: monospace, sans-serif;
-            box-shadow: inset 0 2px 4px rgba(253, 185, 19, 0.15);
+            box-shadow: inset 0 2px 4px rgba(242, 107, 29, 0.12);
         }
         </style>
         """,
@@ -241,13 +262,28 @@ def inject_css():
     )
 
 
-def hero(title: str, subtitle: str = ""):
-    """Render an amber gradient banner with title and optional subtitle."""
-    sub_html = f"<p>{subtitle}</p>" if subtitle else ""
+def navbar(brand: str = "FoodLoop"):
+    """Render top brand identity above navigation."""
     st.markdown(
         f"""
-        <div class="fl-hero">
-            <h2>{title}</h2>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 0.5rem 0 0.75rem 0;">
+            <span style="display: inline-block; width: 14px; height: 14px; background-color: #F26B1D; border-radius: 50%;"></span>
+            <span style="font-size: 1.6rem; font-weight: 800; color: #1F1B2D; letter-spacing: -0.5px;">{brand}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def hero(headline: str, highlight_word: str, subtitle: str = ""):
+    """Render large hero headline with CSS squiggle underline on the highlight word."""
+    sub_html = f"<p style='font-size: 1.15rem; color: #6B7280; font-weight: 500; margin-top: 0.5rem; line-height: 1.5;'>{subtitle}</p>" if subtitle else ""
+    st.markdown(
+        f"""
+        <div style="margin: 0.75rem 0 1.25rem 0;">
+            <h1 class="fl-hero-title">
+                {headline} <span class="fl-highlight">{highlight_word}</span>
+            </h1>
             {sub_html}
         </div>
         """,
@@ -255,8 +291,46 @@ def hero(title: str, subtitle: str = ""):
     )
 
 
-def food_card(row):
-    """Render an HTML card for a surplus food item."""
+def impact_pill(portions: int, co2_kg: float):
+    """Small white rounded pill under search bar showing impact metrics."""
+    st.markdown(
+        f"""
+        <div style="display: inline-flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #FFE8D6; box-shadow: 0 2px 10px rgba(31, 27, 45, 0.05); border-radius: 9999px; padding: 7px 18px; margin: 0.4rem 0 1.25rem 0; font-size: 0.9rem; color: #4B5563; font-weight: 600;">
+            <span>🌱 <b>{portions}</b> portions saved</span>
+            <span style="color: #CBD5E1;">&bull;</span>
+            <span>💨 <b>{co2_kg} kg</b> CO₂ avoided</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def category_tiles() -> str:
+    """Row of 5 category tiles (All, Meals, Rolls, Snacks, South Indian). Stored in session state."""
+    cats = [
+        ("All", "🍽️"),
+        ("Meals", "🍛"),
+        ("Rolls", "🌯"),
+        ("Snacks", "🥟"),
+        ("South Indian", "🥞"),
+    ]
+    if "selected_category" not in st.session_state:
+        st.session_state["selected_category"] = "All"
+
+    cols = st.columns(len(cats))
+    for i, (name, icon) in enumerate(cats):
+        is_active = st.session_state["selected_category"] == name
+        btn_label = f"{icon} {name}"
+        btn_type = "primary" if is_active else "secondary"
+        if cols[i].button(btn_label, key=f"cat_tile_{name}", width="stretch", type=btn_type):
+            st.session_state["selected_category"] = name
+            st.rerun()
+
+    return st.session_state.get("selected_category", "All")
+
+
+def deal_card(row):
+    """HTML card with peach rounded top area, keyword emoji, countdown pill, discount badge, bold price, and points pill."""
     name = row.get("name", "Item")
     n_lower = str(name).lower()
     if "thali" in n_lower or "meal" in n_lower:
@@ -278,28 +352,44 @@ def food_card(row):
     discount_pct = int(row.get("discount_%", 0))
     pts = price_now // core.POINTS_PER_RUPEES
 
-    time_badge_class = "fl-badge fl-badge-time-low" if minutes_left < 30 else "fl-badge fl-badge-time"
+    time_badge_class = "fl-badge fl-badge-urgent" if minutes_left < 30 else "fl-badge fl-badge-time"
 
     st.markdown(
         f"""
-        <div class="fl-card">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                <div style="font-size: 2.2rem; line-height: 1;">{emoji}</div>
-                <span style="font-size: 0.85rem; font-weight: 700; color: #4B5563; background: #FFF8E7; border: 1px solid #FCD34D; padding: 3px 10px; border-radius: 9999px;">{quantity} left</span>
+        <div class="fl-card" style="padding: 1rem; border-radius: 24px; margin-bottom: 0.75rem;">
+            <div style="background: #FFE8D6; border-radius: 18px; padding: 1.5rem 1rem; position: relative; display: flex; align-items: center; justify-content: center; min-height: 120px;">
+                <span class="fl-badge fl-badge-discount" style="position: absolute; top: 10px; left: 10px;">-{discount_pct}%</span>
+                <span class="{time_badge_class}" style="position: absolute; top: 10px; right: 10px;">⏱ {minutes_left} min</span>
+                <div style="font-size: 3.2rem; line-height: 1;">{emoji}</div>
             </div>
-            <div style="font-size: 1.25rem; font-weight: 800; color: #1F1B2D; margin-bottom: 6px;">{name}</div>
-            <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px;">
-                <span style="font-size: 1.45rem; font-weight: 800; color: #1F1B2D;">₹{price_now}</span>
-                <span style="font-size: 1rem; color: #9CA3AF; text-decoration: line-through;">₹{mrp}</span>
-                <span class="fl-badge fl-badge-discount">-{discount_pct}%</span>
+            <div style="padding: 0.85rem 0.25rem 0.25rem 0.25rem;">
+                <div style="font-size: 1.15rem; font-weight: 800; color: #1F1B2D; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{name}</div>
+                <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;">
+                    <span style="font-size: 1.4rem; font-weight: 800; color: #F26B1D;">₹{price_now}</span>
+                    <span style="font-size: 0.95rem; color: #9CA3AF; text-decoration: line-through;">₹{mrp}</span>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #6B7280; margin-left: auto;">{quantity} left</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #4B5563; margin-bottom: 8px;">
+                    Group deal: <b>₹{group_price}</b> ({core.GROUP_MIN_QTY}+ portions)
+                </div>
+                <div>
+                    <span class="fl-badge fl-badge-points">⭐ earn {pts} pts</span>
+                </div>
             </div>
-            <div style="font-size: 0.88rem; color: #4B5563; margin-bottom: 12px;">
-                Group deal: <b>₹{group_price}</b> each ({core.GROUP_MIN_QTY}+ portions)
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                <span class="{time_badge_class}">⏱ {minutes_left} min left</span>
-                <span class="fl-badge fl-badge-points">⭐ earn {pts} pts</span>
-            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def promo_banner(title: str, subtitle: str = ""):
+    """Orange gradient promo banner with white text."""
+    sub_html = f"<p style='color: rgba(255, 255, 255, 0.95) !important; font-size: 1.05rem; margin: 0; font-weight: 500;'>{subtitle}</p>" if subtitle else ""
+    st.markdown(
+        f"""
+        <div style="background: linear-gradient(135deg, #F26B1D 0%, #FF8A3D 100%); border-radius: 24px; padding: 1.75rem 2rem; color: #FFFFFF; margin: 2rem 0; box-shadow: 0 8px 24px rgba(242, 107, 29, 0.25);">
+            <h3 style="color: #FFFFFF !important; font-size: 1.45rem; font-weight: 800; margin: 0 0 0.35rem 0;">{title}</h3>
+            {sub_html}
         </div>
         """,
         unsafe_allow_html=True,
@@ -313,13 +403,12 @@ def pickup_card(order):
     qty = order.get("qty")
     qty_str = f" &times; {int(qty)}" if qty else ""
     code = str(order.get("pickup_code", "")).zfill(6)
-
     digits_html = "".join(f"<div class='fl-code-digit'>{d}</div>" for d in code)
 
     st.markdown(
         f"""
         <div class="fl-card" style="text-align: center; max-width: 440px; margin: 1rem auto 0 auto; padding: 1.5rem 1.25rem 1rem 1.25rem;">
-            <div style="font-size: 0.82rem; font-weight: 700; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px;">Pickup Pass</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #F26B1D; text-transform: uppercase; letter-spacing: 0.5px;">Pickup Pass</div>
             <div style="font-size: 1.35rem; font-weight: 800; color: #1F1B2D; margin: 4px 0 2px 0;">Order #{oid}</div>
             <div style="font-size: 1.05rem; font-weight: 600; color: #4B5563; margin-bottom: 10px;">{item}{qty_str}</div>
             <div class="fl-code-box">{digits_html}</div>
@@ -346,17 +435,23 @@ def pickup_card(order):
         c2.image(buf, width=160)
 
 
-def points_chip(balance: int, pending: int = 0):
-    """Render an amber badge showing balance and pending points."""
-    pending_html = (
-        f"<span style='font-size: 0.82rem; color: #78350F; background: rgba(253, 185, 19, 0.35); padding: 2px 8px; border-radius: 9999px; font-weight: 600; margin-left: 6px;'>+{pending} pending</span>"
-        if pending > 0 else ""
-    )
+def status_badge(status: str) -> str:
+    """Return colored pill HTML for order status: Pending amber, Collected green, Cancelled grey."""
+    s = str(status)
+    if s == "Pending":
+        return '<span style="background-color: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; padding: 4px 12px; border-radius: 9999px; font-weight: 700; font-size: 0.82rem;">Pending</span>'
+    elif s == "Collected":
+        return '<span style="background-color: #E8F8F1; color: #1FA971; border: 1px solid #A7F3D0; padding: 4px 12px; border-radius: 9999px; font-weight: 700; font-size: 0.82rem;">Collected</span>'
+    else:
+        return '<span style="background-color: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; padding: 4px 12px; border-radius: 9999px; font-weight: 700; font-size: 0.82rem;">Cancelled</span>'
+
+
+def footer():
+    """Slim footer bar reading: FoodLoop - Samsung Innovation Lab."""
     st.markdown(
-        f"""
-        <div style="display: inline-flex; align-items: center; background: #FEF3C7; border: 1.5px solid #FCD34D; color: #92400E; padding: 6px 14px; border-radius: 9999px; font-weight: 700; font-size: 0.95rem; box-shadow: 0 2px 6px rgba(253, 185, 19, 0.15); margin-bottom: 1rem;">
-            <span>⭐ {balance} pts</span>
-            {pending_html}
+        """
+        <div style="text-align: center; color: #9CA3AF; font-size: 0.85rem; font-weight: 500; border-top: 1px solid #FFE8D6; padding: 1.75rem 0 1.25rem 0; margin-top: 3rem;">
+            FoodLoop &bull; Samsung Innovation Lab
         </div>
         """,
         unsafe_allow_html=True,
