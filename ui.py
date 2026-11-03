@@ -329,20 +329,47 @@ def category_tiles() -> str:
     return st.session_state.get("selected_category", "All")
 
 
+
+def food_image_url(name):
+    """Return the same food photo used on Explore cards for a food name."""
+    n_lower = " ".join(str(name or "").strip().lower().split())
+    image_map = {
+        "veg thali": "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?auto=format&fit=crop&w=800&q=80",
+        "north indian meals": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80",
+        "veg biryani": "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80",
+        "paneer rice bowl": "https://images.unsplash.com/photo-1590301157890-4810ed352733?auto=format&fit=crop&w=800&q=80",
+        "chole bhature": "https://images.unsplash.com/photo-1626132647523-66f5bf380027?auto=format&fit=crop&w=800&q=80",
+        "veg pulao": "https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=800&q=80",
+        # Dedicated photos for legacy/custom roll listings as well as the standard Paneer Roll.
+        "paneer roll": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=800&q=80",
+        "schezwan roll": "https://c.ndtvimg.com/2023-06/qm0v1tbo_spring-roll_625x300_21_June_23.jpg?im=FaceCrop%2Calgorithm%3Ddnn%2Cwidth%3D800%2Cheight%3D600",
+        "schezwan veggie roll": "https://c.ndtvimg.com/2023-06/qm0v1tbo_spring-roll_625x300_21_June_23.jpg?im=FaceCrop%2Calgorithm%3Ddnn%2Cwidth%3D800%2Cheight%3D600",
+        "schezwan veg roll": "https://c.ndtvimg.com/2023-06/qm0v1tbo_spring-roll_625x300_21_June_23.jpg?im=FaceCrop%2Calgorithm%3Ddnn%2Cwidth%3D800%2Cheight%3D600",
+        "cheese corn roll": "https://dineout-media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto/DINEOUT_ALL_RESTAURANTS/IMAGES/RESTAURANT_IMAGE_SERVICE/2026/2/6/db6fe086-6aff-49c1-8b2d-49208289005c_image1335ba80b8fd1f452dba154a6876b6b815.JPG",
+        "cheese corn rolls": "https://dineout-media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto/DINEOUT_ALL_RESTAURANTS/IMAGES/RESTAURANT_IMAGE_SERVICE/2026/2/6/db6fe086-6aff-49c1-8b2d-49208289005c_image1335ba80b8fd1f452dba154a6876b6b815.JPG",
+        "aloo tikki roll": "https://instamart-media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Ch_960%2Cw_960/InstamartAssets/Receipes/aloo_tikki_wrap.webp",
+        "aloo tikki wrap": "https://instamart-media-assets.swiggy.com/swiggy/image/upload/fl_lossy%2Cf_auto%2Cq_auto%2Ch_960%2Cw_960/InstamartAssets/Receipes/aloo_tikki_wrap.webp",
+        "veg frankie": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=800&q=80",
+        "veg roll": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=800&q=80",
+        "samosa (2 pcs)": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
+        "vada pav": "https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80",
+        "pav bhaji": "https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=800&q=80",
+        "veg sandwich": "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=800&q=80",
+        "french fries": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80",
+        "bread pakoda": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
+        "masala dosa": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=800&q=80",
+        "idli (2 pcs)": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80",
+        "medu vada": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
+        "uttapam": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?auto=format&fit=crop&w=800&q=80",
+    }
+    img_url = image_map.get(n_lower, "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80")
+    return image_map.get(n_lower, "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80")
+
 def deal_card(row):
-    """HTML card with peach rounded top area, keyword emoji, countdown pill, discount badge, bold price, and points pill."""
+    """HTML card with real food photo, countdown pill, discount badge, bold price, and points pill."""
     name = row.get("name", "Item")
-    n_lower = str(name).lower()
-    if "thali" in n_lower or "meal" in n_lower:
-        emoji = "🍛"
-    elif "roll" in n_lower or "wrap" in n_lower:
-        emoji = "🌯"
-    elif "samosa" in n_lower:
-        emoji = "🥟"
-    elif "dosa" in n_lower:
-        emoji = "🥞"
-    else:
-        emoji = "🍽️"
+    n_lower = " ".join(str(name).strip().lower().split())
+    img_url = food_image_url(name)
 
     mrp = int(row.get("mrp", 0))
     price_now = int(row.get("price_now", 0))
@@ -357,10 +384,10 @@ def deal_card(row):
     st.markdown(
         f"""
         <div class="fl-card" style="padding: 1rem; border-radius: 24px; margin-bottom: 0.75rem;">
-            <div style="background: #FFE8D6; border-radius: 18px; padding: 1.5rem 1rem; position: relative; display: flex; align-items: center; justify-content: center; min-height: 120px;">
-                <span class="fl-badge fl-badge-discount" style="position: absolute; top: 10px; left: 10px;">-{discount_pct}%</span>
-                <span class="{time_badge_class}" style="position: absolute; top: 10px; right: 10px;">⏱ {minutes_left} min</span>
-                <div style="font-size: 3.2rem; line-height: 1;">{emoji}</div>
+            <div style="position: relative; border-radius: 18px; overflow: hidden; height: 180px; background: #FFE8D6;">
+                <img src="{img_url}" alt="{name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" loading="lazy" />
+                <span class="fl-badge fl-badge-discount" style="position: absolute; top: 10px; left: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.18);">-{discount_pct}%</span>
+                <span class="{time_badge_class}" style="position: absolute; top: 10px; right: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.18);">⏱ {minutes_left} min</span>
             </div>
             <div style="padding: 0.85rem 0.25rem 0.25rem 0.25rem;">
                 <div style="font-size: 1.15rem; font-weight: 800; color: #1F1B2D; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{name}</div>
